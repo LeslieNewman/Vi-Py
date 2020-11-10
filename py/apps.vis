@@ -1,0 +1,21 @@
+Applay Lib defineMethod: [ | ShowStations |
+!External <- ^self External ;
+!id <- External getParam: "line" ;
+!line <- CoreWorkspace SubwayLine locateId: id ;
+line isntDefault
+ifTrue:
+  [ ^self responseObject
+        set: "line" to: id .
+        set: "count" to: line stationList count ;
+    !stationObjects <- line stationList sortUp: [ coords ] .
+       send: [ ^my External getNewObject
+                  set: "name" to: name .
+                  set: "coords" to: coords .
+             ] ;
+    ^self responseObject
+        set: "stations" to: (External getNewArrayFrom: stationObjects) ;
+    ^self updateStatusWithSuccess ;
+   ]
+ifFalse: [ ^self postErrorWithMessage: ("Line " concat: id . concat: " not found.") ] ;
+^self
+] ;
