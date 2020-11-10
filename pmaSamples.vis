@@ -1,0 +1,19 @@
+"SECURITIES: " printNL ;
+JS createArrayFrom: [ Security masterList select: [ price > 50 ] ]
+               for: "ticker, name, price"
+              over: 9712, 9711 . pprint ;
+"=" fill: 50 . printNL ;
+
+"ACCOUNTS: " printNL ;
+!accounts <- JS
+  createArrayFrom: [ Account masterList ]
+              for: "code, name, holdings count, totalMarketValue"
+             over: (9712 to: 9512 by: 1 yearEnds) . pprint ;
+"=" fill: 50 . printNL ;
+
+"HOLDINGS: " printNL ;
+!holdings <- JS
+  createArrayFrom: [ Account findId: "102" . holdings ]
+              for: "account code, security code, totalMarketValue, percentOfPort, shares"
+             over: (9601 to: 9612 by: 1 monthEnds) . pprint ;
+"=" fill: 50 . printNL ;
