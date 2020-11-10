@@ -1,0 +1,4 @@
+!result <- JS createArrayFrom: [ Currency masterList ]
+              for: "code, name, fixedRateToEuro" ;
+
+result pprint: 4 ; 
