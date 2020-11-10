@@ -1,0 +1,34 @@
+!url <- "https://data.cityofnewyork.us/api/views/he7q-3hwy/rows.json?accessType=DOWNLOAD" ;
+!response <- jsConnect fetchJSONFrom: url ;
+!result <- response get: "result" ;
+
+
+!data <- result get: "data" ;
+!count <- data get: [ length ] ;
+
+
+!info <- count sequence0
+extendBy:
+   [ !record <- ^my data get: ^self ;
+     !id <- asSelf asString ;
+     !lines <- record get: 12 ;
+     !lineXRef <- lines breakOn: "-" . nonDefaults ;
+     !name <- record get: 10 ;
+     !coords <- record get: 11 . from: "(" ;
+     !lat <- coords drop: 1 . to: " " . drop: -1 . asNumber ;
+     !lon <- coords from: " " . drop: 1 . to: ")" . drop: -1 . asNumber ;
+   ] .
+select: [ name isntDefault ] .
+groupedByString: [ coords ] .
+send: [ groupList at: 1 ] .
+groupedByString: [ name ] .
+send: [ groupList at: 1 ] ;
+
+info
+do: [ id print: 5 ;
+      name print: 60 ;
+      lines print: 15 ;
+#      lat print ; lon print ;
+      coords print ;
+      newLine print ;
+    ] ;
