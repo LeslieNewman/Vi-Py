@@ -1,0 +1,14 @@
+!path <- ProcessControlTools getEnvFor: "HOME/YOUR_AREA/" ;
+path concat: "node.vis" . asFileContents evaluate ;
+path concat: "nodesupp.vis" . asFileContents evaluate ;
+path concat: "subwayGetData.vis" . asFileContents evaluate ;
+path concat: "subwayLoadData.vis" . asFileContents evaluate ;
+
+path concat: "pmaLoadData.vis" . asFileContents evaluate ;
+
+path concat: "applay.inprog" . asFileContents evaluate ;
+path concat: "applay.supp" . asFileContents evaluate ;
+
+#-- place to store SNFs instead of displaying them  - used by applay
+^tmp define: 'currentSNFList' toBe: List new ;
+^tmp define: 'enableSNFLogger' toBe: TRUE ;
