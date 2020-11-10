@@ -1,0 +1,258 @@
+####################
+#  applay.vis
+#
+#  Experimental code to package up the application side of the
+#    external object model
+####################
+
+
+####################
+#  Create the ToolKit class
+####################
+CoreWorkspace respondsTo: "Applay". ifFalse: [
+    ToolKit createSubclass: "Applay" at: CoreWorkspace;
+    Applay createSubclass: "Lib" at: Applay ;
+    Applay createSubclass: "Helper" at: Applay Lib ;
+    Applay createSubclass: "External" at: Applay ;
+    Applay External createSubclass: "DummyExternal" at: Applay ;
+] ;
+
+#-- Applay showInheritance ;
+
+####################
+#  Protocol
+####################
+
+Applay defineMethod: [ | externalConnection |
+  GlobalWorkspace JS
+] ;
+
+#--------------------
+#  Application Execution
+#--------------------
+
+Applay defineMethod: [ | run: app with: object |
+object isntNA
+  ifTrue: [ ^self extendBy: [ !External <- ^my object ] ]
+    else: [ ^self ] . run: app
+] ;
+
+Applay defineMethod: [ | run: app |
+!methodBlock <- ^self getAppName: app ;
+!External <- ^self External ;
+!statusObject <- External getNewObject ;
+!responseObject <- External getNewObject ;
+
+methodBlock isntNA
+   ifTrue: [ ^current executeApplication ]
+  ifFalse: [ ^current postAppNotFound ] ;
+
+!resultObject <- External getNewObject
+    set: "status" to: statusObject .
+    set: "response" to: responseObject .
+;
+External return: resultObject
+
+] ;
+
+Applay defineMethod: [ | executeApplication |
+!wkspace <- ^self ;
+Lib
+  extendBy: [ !statusObject <- ^my wkspace statusObject ;
+              !responseObject <- ^my wkspace responseObject ;
+              !External <- ^my wkspace External ;
+            ] .
+     send: ^self methodBlock
+] ;
+
+Applay defineMethod: [ | getAppName: app |
+app isntNA
+ifTrue:
+   [ GlobalWorkspace ApplicationTools Utilities
+         getCaseSensitiveSelectorFor: app in: Lib .
+      send: [ isntNA ifTrue: [ asBlock ] ]
+   ] .
+]  ;
+
+Applay defineMethod: [ | updateStatusWithSuccess |
+^self updateStatusWith: 0 andMessage: "Success"
+] ;
+
+Applay defineMethod: [ | postAppNotFound |
+^self updateStatusWith: -1
+      andMessage: ("Application " concat: ^self app . concat: " Not Found")
+] ;
+
+Applay defineMethod: [ | postErrorWithMessage: message |
+  ^self updateStatusWith: -2 andMessage: message
+] ;
+Applay defineMethod: [ | updateStatusWith: id andMessage: message |
+^self statusObject
+   set: "code" to: id .
+   set: "message" to: message ;
+^self
+
+] ;
+
+#----------------------------------------
+
+####################
+#  Applay External
+####################
+
+Applay External defineMethod: [ | getParam: key |
+!input <-  ^self externalConnection  jsObject request body send: key asBlock ;
+
+input isString ifTrue: [ input ]
+
+] ;
+
+Applay External defineMethod: [ | getNewObject |
+^self externalConnection newObject
+] ;
+
+Applay External defineMethod: [ | getNewArrayFrom: list |
+^self externalConnection newArrayFrom: list
+] ;
+
+Applay External defineMethod: [ | return: object |
+!wkspace <- ^self ;
+!snfObjects <- ^self getSNFObjects ;
+object set: "snfs" to: (^self getNewArrayFrom: snfObjects) ;
+^self returnJSON: object
+] ;
+
+Applay External defineMethod: [ | returnJSON: object |
+  ^self externalConnection jsObject returnJSON: object jsParam
+] ;
+
+Applay External defineMethod: [ | getSNFObjects |
+!wkspace <- ^self ;
+!snfObjects <- ^tmp currentSNFList
+  send: [ ^my wkspace getNewObject
+            set: 'selector' to:  selector asString .
+            set: 'dbname' to: dbname .
+            set: 'class' to: class
+        ] ;
+^tmp define: 'currentSNFList' toBe: GlobalWorkspace List new ;
+snfObjects
+
+] ;
+
+#========================================
+
+####################
+#  Helper Methods
+####################
+
+Applay Lib defineMethod: [ | getParam: p |
+  ^self External getParam: p
+] ;
+
+Applay Lib defineMethod: [ | helper |
+  !External <- ^self External ;
+  Helper extendBy: [ !External <- ^my External ]
+] ;
+
+Applay Lib Helper defineMethod: [ | getIdsAs: type |
+  !ids <- ^self External getParam: "id" .
+      else: [ ^self External getParam: "ids" ] ;
+  ids as: "" .
+    send: [ !originalId <- ^self ;
+            originalId as: ^my type .
+                extendBy: [ !originalId <- ^my originalId ]
+          ]
+] ;
+
+#========================================
+
+####################
+#  Support for DummyExternal object
+#    aids in testing in standalone editor
+####################
+
+
+Applay DummyExternal defineMethod: [ | externalConnection |
+  ^self
+] ;
+
+Applay DummyExternal define: "params" toBe: Dictionary new ;
+Applay DummyExternal defineFixedProperty: "xref" withDefault: IndexedList new ;
+
+Applay DummyExternal defineMethod: [ | reset |
+  ^self define: "params" toBe: GlobalWorkspace Dictionary new ;
+  ^self
+] ;
+
+Applay DummyExternal defineMethod: [ | initializeLocalAttributes |
+  :xref <- GlobalWorkspace IndexedList newPrototype new ;
+  ^self
+] ;
+
+#--------------------
+
+Applay DummyExternal defineMethod: [ | addParam: key as: val |
+  params at: key put: val ;
+  ^self
+] ;
+
+Applay DummyExternal defineMethod: [ | getParam: key |
+params at: key
+] ;
+
+Applay DummyExternal defineMethod: [ | getNewObject |
+^self createInstance
+] ;
+
+Applay DummyExternal defineMethod: [ | getNewArrayFrom: list |
+list isCollection ifTrue: [ list ] else: [ list asList ]
+
+] ;
+
+Applay DummyExternal defineMethod: [ | set: key to: val |
+#-- use params for now
+^self xref at: key put: val ;
+^self
+] ;
+
+Applay DummyExternal defineMethod: [ | returnJSON: object |
+  object
+] ;
+
+Applay DummyExternal defineMethod: [ | print |
+^self xref extendIndex
+do: [
+      index asString concat: "--> " . concat: ^self . printNL ;
+      isCollection
+        ifTrue: [ " - " fill: 20 . printNL ;
+                  ^self do: [ print; ];
+                  " - " fill: 20 . printNL ;
+                ] ;
+    ] ;
+] ;
+
+
+#======================================================================
+
+####################
+#  Fix bug in IndexedList extendIndex to support lookup
+####################
+
+IndexedList defineMethod: [|extendIndex|
+!origList <- ^self asSelf;
+!keyList <- ^self asSelf asPOP getNthPOP: 2 .
+asObject instanceList send: [value];
+!nilValue <- ^self valueCell: "newKeyWithNoValue";
+!hitList <- keyList
+extendBy: [!index <- ^self;
+    !myValue <- ^my origList valueCell: index;
+   ].
+select: [myValue != ^my nilValue];
+!newList <- CoreWorkspace IndexedList new;
+
+hitList
+do: [^my newList at: index put: (
+    ^my origList at: index . basicExtend: [!index <- ^my index])];
+newList
+] ;
+
