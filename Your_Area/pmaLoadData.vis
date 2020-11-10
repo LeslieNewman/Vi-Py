@@ -1,0 +1,32 @@
+[
+!path <- ProcessControlTools getEnvFor: "LocalVisionRoot" ;
+Interface ExternalFeedManager upload:"CurrencyMaster" usingFile:
+(path concat: "/samples/pma/Currency.pma");
+
+Interface ExternalFeedManager upload:"CountryMaster" usingFile:
+(path concat: "/samples/pma/Country.pma");
+
+Interface ExternalFeedManager upload:"SectorMaster" usingFile:
+(path concat: "/samples/pma/Sector.pma");
+
+Interface ExternalFeedManager upload:"IndustryMaster" usingFile:
+(path concat: "/samples/pma/Industry.pma");
+
+Interface ExternalFeedManager upload:"CompanyMaster" usingFile:
+(path concat: "/samples/pma/Company.pma");
+
+Interface ExternalFeedManager upload:"SecurityTypeMaster" usingFile:
+(path concat: "/samples/pma/SecType.pma");
+
+Interface ExternalFeedManager upload:"SecurityMaster" usingFile:
+(path concat: "/samples/pma/Security.pma");
+
+Interface ExternalFeedManager upload:"PortfolioMaster" usingFile:
+(path concat: "/samples/pma/Portfolio.pma");
+
+Interface ExternalFeedManager upload:"PriceFeed" usingFile:
+(path concat: "/samples/pma/Price.pma");
+
+Interface ExternalFeedManager upload:"HoldingsFeed" usingFile:
+(path concat: "/samples/pma/Holdings.pma");
+] divertOutput ;
