@@ -1,0 +1,97 @@
+ClassSetup updateFromString: "ClassID | ParentID | Description |
+SubwayLine | Table | NYC Subway Lines |
+Station | Entity | NYC Subway Station |
+" ;
+
+#-- Let's get some properties initialized for cross referencing
+#-- Can't believe that MembershipFeed can't do this cleanly, but going to cheat for now
+#-- Whoever wrote that stuff left some useful features and documentation out!
+
+Station respondsTo: "lineList" . ifFalse:
+  [ Station defineFixedProperty: "lineList" withDefault: IndexedList new ;
+    SubwayLine defineFixedProperty: "stationList" withDefault: IndexedList new ;
+  ] ;
+
+Station defineMethod: [ | initializeLocalAttributes |
+^super initializeLocalAttributes ;
+:lineList <- defaultInstance lineList clusterNew ;
+^self
+] ;
+
+SubwayLine defineMethod: [ | initializeLocalAttributes |
+^super initializeLocalAttributes ;
+:stationList <- defaultInstance stationList clusterNew ;
+^self
+] ;
+
+#-------------
+
+MasterFeedSetup updateFromString: "feedId | entityId
+SubwayLineMaster | SubwayLine
+StationMaster | Station
+" ;
+
+PropertySetup updateFromString:
+"classId | property | dataType
+Station | lon | Double
+Station | lat | Double
+Station | coords |
+" ;
+
+
+!lineFeed <-
+  [ "id" printNL ;
+    info do: [ lineXRef do: [ printNL ]  ]
+  ] divertOutput  ;
+
+SubwayLineMaster enableAllowDuplicates updateFromString: lineFeed ;
+
+!stationFeed <-
+  [ "id | name | lon | lat | coords " printNL ;
+    info
+    do: [ id print ; " | " print ; name print ; " | " print ;
+          lon print ; " | " print ; lat print ; " | " print ; coords printNL ;
+        ] ;
+  ] divertOutput ;
+
+StationMaster updateFromString: stationFeed ;
+
+#-- Let's get the crossrefences built
+
+
+info
+do: [ !station <- id as: CoreWorkspace Station ;
+      !subwayLines <- lineXRef send: [ asSelf as: CoreWorkspace SubwayLine ] ;
+      subwayLines do: [ ^my station lineList at: ^self put: ^self ;
+                        stationList at: ^my station put: ^my station ;
+                      ] ;
+    ] ;
+
+Station defineMethod: [ | profile |
+displayInfo ;
+"Lines: " print ; lineList do: [ print ; " " print ] ;
+newLine print ;
+] ;
+
+SubwayLine defineMethod: [ | profile |
+"SubwayLine: " print ; printNL ;
+stationList sortUp: [ coords ] .
+   do: [ !line <- ^my asSelf ;
+         " " print: 5 ;  name print: 53 ; coords print: 42 ;
+         lineList count > 1
+           ifTrue: [ lineList select: [ ^self != ^my line ] .
+                     do: [ " + " print ; print ] ;
+                   ] ;
+         newLine print ;
+       ] ;
+] ;
+
+Station defineMethod: [ | profile |
+name printNL ;
+"Lines: " print ; lineList do: [ print ; " " print ] ; newLine print ;
+] ;
+
+
+
+SubwayLine locateId: "7" . profile ;
+Station locateId: "63" . profile ;
