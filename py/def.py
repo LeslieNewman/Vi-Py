@@ -13,7 +13,7 @@ import urllib, urllib2, json
 
 #---  getUrlPrefix
 def getUrlPrefix():
-   return('http://ip-172-31-28-41.us-east-2.compute.internal:10000/vision/api')
+   return('http://YOUR_IP_ADDRESS_GOES_HERE:10000/vision/api')
 
 #---  runvx("Schema+showInheritance")
 def runvx(query):
