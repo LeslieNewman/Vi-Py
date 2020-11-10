@@ -1,0 +1,62 @@
+ApplicationTools respondsTo: "Utilities" .
+ifFalse:
+   [ ApplicationTools createSubclass: "Utilities" at: ApplicationTools ;
+   ] ;
+
+#--------------------
+#  generic method to get case-sensitive equivalent of a selector ;
+#  Note: this method is not meant to be used in a large list operation
+#  Note: that this is a recursive method
+#--------------------
+
+ApplicationTools Utilities
+defineMethod: [ | getCaseSensitiveSelectorFor: id in: class |
+  !words <- id asWords ;
+  !currentClass <- class selectorList
+       extendBy: [ !upper <- asString toUpper ] ;
+  !count <- 1 ;
+  !expression <- "" ;
+  [ count <= words count ]
+  whileTrue:
+     [ !id <- words at: count ;
+       :count increment ;
+       !selector <- id locateInDictionaryOf: class  . isntNA
+         ifTrue: [ id ] .
+           else: [ !toUpper <- id toUpper ;
+                   currentClass select: [ upper = ^my toUpper ] . at: 1
+                 ] .
+         elseIf: [ class super != class ]
+           then: [ ^self getCaseSensitiveSelectorFor: id in: class super ] .
+           else: [ NA ] ;
+       selector isNA
+       ifTrue: [ :count <- words count increment ;
+                 :expression <- NA ;
+               ]
+      ifFalse: [ :expression <- expression concat: selector . concat: " " ] ;
+    ] ;
+ expression isntNA ifTrue: [ expression stripTrailingBlanks ]
+] ;
+
+#--------------
+#  SNF Handler
+#--------------
+Object defineMethod: [| handleSNF: snf|
+  GlobalWorkspace ProcessControlTools logSNF: snf onObject: ^self
+] ;
+
+ProcessControlTools defineMethod: [ | logSNF: snf onObject: object |
+^tmp enableSNFLogger isTrue
+ifTrue:
+  [ ^tmp define: 'enableSNFLogger' toBe: FALSE ;
+    0 asReferenceTo: ^current .
+    doOnceNoContext:
+      [ !selector <- snf selector ;
+        !dbname <- object CoreWorkspace name ;
+        !class <- object whatAmI ;
+        ^tmp currentSNFList , ^current ;
+        snf dismiss ;
+      ] ;
+    ^tmp define: 'enableSNFLogger' toBe: TRUE ;
+    NA
+  ]
+] ;
