@@ -1,0 +1,7 @@
+!stationObjects <- SubwayLine locateId: "7" .
+   stationList sortUp: [ coords ] .
+  send: [ CoreWorkspace JS newObject
+             set: "name" to: name .
+             set: "coords" to: coords
+        ] ;
+JS jsObject returnJSON: (JS newArrayFrom: stationObjects . jsParam);
