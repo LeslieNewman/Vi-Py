@@ -10,8 +10,8 @@ import json
 #-----
 #  getUrlPrefix   - returns the service access path
 #  runvx(vision_expression) - pure vision, pass in a vision expression, do your own encoding
-#  runvision ( {'expression' : vision_expression} ) - pass in a py dictionary that presents vision expression
-#  runvisionJSON ({'expression' : vision_expression} ) - pass in a py dictionary, vision returns json object
+#  runvision ('vision_expreesion') - converts to dictionary that encodes vision expression into {'expression' : encodedExpression}
+#  runvisionJSON ('vision_expression') - converts to dictionary that encodes vision expression and returns JSON object
 #-----
 
 #---  getUrlPrefix
