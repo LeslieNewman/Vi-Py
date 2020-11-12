@@ -16,7 +16,7 @@ import json
 
 #---  getUrlPrefix
 def getUrlPrefix():
-   return('http://visdeva06.factset.com:10010/vision/api')
+   return('http://YOUR_IP_ADDRESS:10100/vision/api')
 
 #---  runvx("Schema+showInheritance")
 def runvx(query):
@@ -42,6 +42,7 @@ def runvision(query):
 #--- runvisionJSON( open('./examples/schema.vis','r').read())
 def runvisionJSON(query):
      return json.loads(runvision(query))
+
 
 #--- runapp ("appName", params={})
 def runapp (appName, params={} ) :
