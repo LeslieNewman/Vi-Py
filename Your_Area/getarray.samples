@@ -1,0 +1,13 @@
+####################
+#  samples using create/get array
+####################
+
+JS createArrayFrom: [ CurrencyMap factset masterList ] for: "name,usExchange"  over: (99 to: 20 by: 1 yearEnds). pprint ; 
+
+JS createArrayFrom: [ Account findId: "Sp50" . holdings sortDown: [ percentOfPort ] . first: 1 ]
+for: "security id, security name, percentOfPort, totalMarketValue, mapEntry factset price"
+over: (20201031 to: 20200131 by: 1 monthEnds) . pprint ; 
+
+JS getArrayFrom: [ SecurityMap findId: "FDS" . factset ] for: "price" over: (^date - 1 monthEnds to: ^date by: 1 businessDays) .
+pprint ; 
+

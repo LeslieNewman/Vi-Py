@@ -1,0 +1,48 @@
+Applay run: "AccountHoldings" withParams:
+  (Applay  getNewObject
+     set: "acctId" to: "sp50" .
+     set: "date" to: "20191031" .
+  ) . pprint ; 
+
+ Applay run: "AllAccountSummary" withParams:
+  (Applay  getNewObject
+     set: "sourceId" to: "sp50" .
+     set: "date" to: "20191031" .
+  ) . pprint ;
+
+ Applay run: "TopHoldingsByAccount" withParams:
+  (Applay  getNewObject
+     set: "sourceId" to: "sp50" .
+     set: "date" to: "20191031" .
+     set: "n" to: "3" .
+  ) . pprint ;
+
+ Applay run: "WhoOwns" withParams:
+  (Applay  getNewObject
+     set: "sourceId" to: "sp50" .
+     set: "secId" to: "FDS" .
+  ) . pprint ;
+
+ Applay run: "SecurityDateXTab" withParams:
+  (Applay  getNewObject
+     set: "acctId" to: "sp50" .
+  ) . pprint ;
+
+ Applay run: "SecurityAccountXTab" withParams:
+  (Applay  getNewObject
+     set: "acctIds" to: "sp50,spii,sml" .
+  ) . pprint ;
+
+
+ Applay run: "AccountSecurityXTab" withParams:
+  (Applay  getNewObject
+     set: "sourceId" to: "sp50" .
+     set: "secIds" to: "FDS,ibm,xxx,msft"
+  ) . pprint ;
+
+Applay run: "BenchmarkMemberChanges" withParams:
+  (Applay  getNewObject
+     set: "acctId" to: "sp50".
+#     set: "start_date" to: "20171231"
+  ) . pprint ; 
+

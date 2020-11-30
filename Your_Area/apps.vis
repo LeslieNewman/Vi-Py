@@ -1,0 +1,489 @@
+####################
+#  Query: AccountHoldings   
+#         Returns the constituents for an Account (Benchmark or Portfolio) 
+#         as of a date
+#
+#   Inputs
+#      id     : id of Account 
+#      date   : as of date of Holdings
+#
+#   Output:
+#      id             : account id
+#      name           : account name
+#      type           : account type
+#      date           : input date
+#      currency       : default currency for account
+#      count          : number of holdings as of date
+#      constituents   : array of constituents
+#          date   :  holdings date
+#          acctId :  account id
+#          secId  :  security id (factset standard)
+#          vendorId : secuirty id (vendor supplied)
+#          name   :  security name
+#          mval   :  total market value
+#          shares :  shares
+#          weight :  weight
+#
+####################
+
+Applay Lib defineMethod: [ | AccountHoldings |
+!id <- ^self getParam: "acctId" ;
+!date <- ^self getParam: "date" . asDate else: ^date ;
+
+!entity <- GlobalWorkspace Account findId: id ;
+entity isntDefault
+ifTrue: 
+  [ !holdings <- date evaluate: [ entity holdings ] ;
+    ^self responseObject
+        set: "id" to: entity id . 
+        set: "name" to: entity name .
+        set: "type" to: entity whatAmI .
+        set: "currency" to: entity currency code .
+        set: "date" to: date asInteger .
+        set: "count" to: holdings count .
+       ; 
+     !constits <- holdings 
+        send: [ ^my getNewObject 
+                    set: "acctId" to: account code .
+                    set: "date" to: date formatUsingShortName .
+                    set: "secId" 
+                     to: security descriptiveData factsetId .
+                    set: "vendorId" to: security code .
+                    set: "name" to: security name .
+                    set: "weight" to: percentOfPort .
+                    set: "shares" to: shares .
+                    set: "mval" to: totalMarketValue .
+                ] ;
+    ^self responseObject
+         set: "constituents" to: (^self getNewArrayFrom: constits);
+    ^self updateStatusWithSuccess ;
+    ]
+ifFalse: 
+   [ ^self postErrorWithMessage: ("Id " concat: id . concat: " not found.")
+   ] ;
+
+^self
+] ;
+
+#>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+####################
+#  Query: AllAccountSummary
+#         Provide summary information for each account associated with 
+#         a source (e.g., SP, Russell, Portfolio) as of a specific date
+#
+#   Inputs
+#      sourceId : id of Account to use as surrogate for family
+#      date     : as of date of Holdings
+#
+#   Output:
+#      id             : account id
+#      name           : account name
+#      date           : input date
+#      count          : number of holdings as of date
+#      tmv            : total market value as of date
+#      tmv1D          : total market value as of prior business date
+#      tmv1ME         : total market value as of prior month-end
+#      tmv1YE         : total market value as of prior year-end
+#
+####################
+
+Applay Lib defineMethod: [ | AllAccountSummary |
+!sourceId <- ^self getParam: "sourceId" . else: "" ; 
+!date <- ^self getParam: "date" . asDate else: ^date ;
+
+!accounts <- GlobalWorkspace Account findId: sourceId . 
+     ifDefault: [GlobalWorkspace Portfolio ] . activeList ;
+
+date evaluate: 
+  [ !list <- accounts select: [ hasHoldings ] .
+       extendBy: [ !tmv <- totalMarketValue ;
+                   !tmv1D <- :totalMarketValue lag: 1 businessDays ;
+                   !tmv1ME <- :totalMarketValue lag: 1 monthEnds ;
+                   !tmv1YE <- :totalMarketValue lag: 1  yearEnds ;
+                 ] ;
+     list count > 0
+     ifTrue:
+       [ !dataArray <- list send: 
+           [ ^my getNewObject
+               set: "id" to: code .
+               set: "name" to: name .
+               set: "date" to: ^date asString .
+               set: "count" to: holdings count .
+               set: "tmv" to: tmv .
+               set: "tmv1D" to: tmv1D .
+               set: "tmv1ME" to: tmv1ME .
+               set: "tmv1YE" to: tmv1YE .
+           ] ;
+         ^self responseObject 
+            set: "accounts" to: (^self getNewArrayFrom: dataArray) ;
+         ^self updateStatusWithSuccess ; 
+       ]
+     ifFalse: 
+       [ ^self postErrorWithMessage: 
+             ("No Accounts find for source " concat: sourceId ) ;
+       ]
+   ] ;
+^self
+] ;
+
+#>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+####################
+#  Query: TopHoldingsByAccount
+#         Retrieves top 'n' holdings for each account associated
+#         with a source as of a specific date
+#
+#   Inputs
+#      sourceId : id of Account to use as surrogate for family
+#      date     : as of date of Holdings
+#      n        : number of holdings to display (defaults to 5)
+#
+#   Output:
+#      acctId          : account id
+#      secId           : security id
+#      date            : holdings date
+#      position        : 1 - n
+#      weight          : weight of security in account
+#
+####################
+
+Applay Lib defineMethod: [ | TopHoldingsByAccount |
+!sourceId <- ^self getParam: "sourceId" . else: "" ; 
+!date <- ^self getParam: "date" . asDate else: ^date ;
+!n <- ^self getParam: "n" . asInteger else: 5 ;
+
+!accounts <- GlobalWorkspace Account findId: sourceId . 
+     ifDefault: [GlobalWorkspace Portfolio ] . activeList ;
+
+date evaluate: 
+  [ !list <- accounts select: [ hasHoldings ] .
+       collectListElementsFrom: 
+         [ holdings sortDown: [ percentOfPort ] . first: ^my n .
+             numberElements
+         ] . sortUp: [ position ] . sortUp: [ account code ] ;
+     list count > 0
+     ifTrue:
+       [ !dataArray <- list send: 
+           [ ^my getNewObject 
+               set: "acctId" to: account code .
+               set: "secId" to: security code .
+               set: "date" to: ^date asString .
+               set: "position" to: position .
+               set: "weight" to: weight .
+           ] ;
+         ^self responseObject 
+            set: "data" to: (^self getNewArrayFrom: dataArray) ;
+         ^self updateStatusWithSuccess ; 
+       ]
+     ifFalse: 
+       [ ^self postErrorWithMessage: 
+             ("No Accounts find for source " concat: sourceId ) ;
+       ]
+   ] ;
+^self
+] ;
+
+#>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+####################
+#  Query: WhoOwns
+#         Returns the Benchmarks or Portfolios that include supplied security
+#
+#   Inputs
+#      sourceId : id of Account to use as surrogate for family
+#      secId    : id of Security
+#      date     : as of date of Holdings
+#
+#   Output:
+#      id             : security id 
+#      name           : security name
+#      constituents   : array of constituents
+#          date   :  holdings date
+#          acctId :  account id
+#          secId  :  security id (factset standard)
+#          name     : account name
+#          mval   :  total market value
+#          shares :  shares
+#          weight :  weight
+#
+####################
+
+Applay Lib defineMethod: [ | WhoOwns |
+!sourceId <- ^self getParam: "sourceId" ;
+!secId <- ^self getParam: "secId" ;
+!date <- ^self getParam: "date" . asDate else: ^date ;
+
+!source <- GlobalWorkspace Account findId: sourceId . 
+    else: [ GlobalWorkspace Portfolio ] ;
+!entity <- source CoreWorkspace Security locateId: secId ;
+entity isntDefault
+ifTrue: 
+  [ !holdings <- date evaluate: [ entity holdings ] ;
+    ^self responseObject
+        set: "id" to: entity id .
+        set: "name" to: entity name .
+       ; 
+     !constits <- holdings 
+        send: [ ^my getNewObject 
+                    set: "acctId" to: account code .
+                    set: "date" to: date formatUsingShortName .
+                    set: "secId" 
+                     to: security descriptiveData factsetId .
+                    set: "name" to: account name .
+                    set: "weight" to: percentOfPort .
+                    set: "shares" to: shares .
+                    set: "mval" to: totalMarketValue .
+                ] ;
+    ^self responseObject
+         set: "constituents" to: (^self getNewArrayFrom: constits);
+    ^self updateStatusWithSuccess ;
+    ]
+ifFalse: 
+   [ ^self postErrorWithMessage: ("Id " concat: secId . concat: " not found.")
+   ] ;
+
+^self
+] ;
+
+#>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+####################
+#  Query: SecurityDateXTab	
+#      Crosstab of security x different time points for a single account, 
+#         aligning securities over time within a portfolio or benchmark
+#
+#   Inputs
+#      acctId   : account id
+#      dates    : comma separated list of dates in YYYYMMDD format
+#                   (default is current, -1me, -3me, -1ye)
+#
+#   Output:
+#      acctId          : id for supplied account
+#      name            : account name
+#      date1...dateN   : values for each request date
+#      data            : vector of security x date weights
+#         secId           : security id
+#         name            : security name
+#         date1...dateN    : weight in security on each supplied date
+#
+####################
+
+Applay Lib defineMethod: [ | SecurityDateXTab |
+!id <- ^self getParam: "acctId" . else: "" ;
+!dates <- ^self getParam: "dates" . as: ^date ;
+dates isList ifFalse: [ :dates <- dates asList ] ;
+:dates <- dates select: [ isntDefault ] ;
+!baseDate <- ^date = ^today
+    ifTrue: [ ^date - 1 businessDays ] else: [ ^date ] ;
+!dateList <- dates count > 0
+   ifTrue: [ dates ] 
+   else: [ baseDate, baseDate - 1 monthEnds, baseDate - 3 monthEnds, baseDate - 1 yearEnds ] ;
+
+!entity <- GlobalWorkspace Account findId: id ;
+entity isntDefault
+ifTrue:
+  [ !list <- dateList send: [ ^my entity :holdings asOf: ^self ] .
+          collectListElementsFrom: [ ^self ] ;
+    !holdDates <- dateList send: [ ^my entity :holdingsDate asOf: ^self ] .
+        unique numberElements ;
+    !bySec <- list groupedBy: [ security ] ;
+    !data <- bySec
+       send: [ !object <- ^my getNewObject
+                 set: "secId" to: code .
+                 set: "name" to: name ;
+               groupList groupedBy: [ date ] in: ^my holdDates .
+               do: [ ^my object set: ("date" concat: position)
+                                to: (groupList total: [ percentOfPort ] ) ;
+                   ] ;
+               object
+              ] ;
+    !ro <- ^self responseObject ;
+    ro
+      set: "acctId" to: entity code .
+      set: "name" to: entity name .
+      set: "data" to: (^self getNewArrayFrom: data);
+    holdDates
+    do: [ ^my ro set: ("date" concat: position) to: asInteger asString ] ;
+    ^self updateStatusWithSuccess ;
+    ]
+ifFalse: 
+   [ ^self postErrorWithMessage: ("Id " concat: id . concat: " not found.")
+   ] ;
+
+^self
+] ;
+
+
+#>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+
+####################
+#  Query: SecurityAccountXTab 
+#     Crosstab of security for a set of accounts as of a specific date
+#
+#   Inputs
+#      acctIds   : commas separate list of account ids
+#      date      : as of date
+#
+#   Output:
+#      secId           : security id
+#      name            : security name
+#      weights...      : weight in security for each supplied account
+##
+####################
+
+
+Applay Lib defineMethod: [ | SecurityAccountXTab |
+!ids <- ^self getParam: "acctIds" ;
+!date <- ^self getParam: "date" . asDate else: ^date ; 
+!accts <- ids globalAs: GlobalWorkspace Account ;
+accts isList ifFalse: [ :accts <- accts asList ] ;
+:accts <- accts select: [ isntDefault ] . unique numberElements ;
+accts count > 0
+ifTrue:
+   [ date evaluate:
+      [ !bySec <- accts collectListElementsFrom: [ holdings ] .
+             groupedBy: [ security getMapEntry ] ;
+        !data <- bySec
+          send: [ !object <- ^my getNewObject 
+                    set: "secId" to: code . 
+                    set: "name" to: name ;
+                   groupList groupedBy: [ account ]
+                                    in: ^my accts . sortUp: [ position ] .
+                   do: [ ^my object set: ("acct" concat: position)
+                                     to: (groupList total: [ percentOfPort ] );
+                       ] ;
+                   object
+                 ] ;
+         !ro <- ^self responseObject ;
+         ro set: "data" to: (^self getNewArrayFrom: data) ;
+         accts do: [ ^my ro set: ("acct" concat: position) to: code ] ;
+         ^self updateStatusWithSuccess ;
+       ] ;
+    ]
+ifFalse: 
+   [ ^self postErrorWithMessage: ("Id " concat: id . concat: " not found.")
+   ] ;
+
+^self
+] ;
+
+
+#>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+####################
+#  Query: AccountSecurityXTab
+#      Account x Security cross tab for a set of securities as of a date
+#
+#   Inputs
+#      sourceId : id of Account to use as surrogate for family
+#      secIds   : comma-separate list of  Security ids
+#      date     : as of date of Holdings
+#
+#   Output:
+#      sec1...secN    : ids for each security in xtab
+#      data           : array of accounts showing weight in each security
+#          acctId :  account id
+#          name     : account name
+#          date   :  holdings date
+#          sec1...secN  : weight for each security in account
+#
+####################
+
+Applay Lib defineMethod: [ | AccountSecurityXTab |
+!sourceId <- ^self getParam: "sourceId" ;
+!secIds <- ^self getParam: "secIds" ;
+!date <- ^self getParam: "date" . asDate else: ^date ;
+
+!source <- GlobalWorkspace Account findId: sourceId . 
+    else: [ GlobalWorkspace Portfolio ] ;
+!secList <- secIds as: source CoreWorkspace Security ;
+secList isList ifFalse: [ :secList <- secList asList ] ;
+:secList <- secList select: [ isntDefault ] . unique numberElements ;
+secList count > 0 
+ifTrue: 
+  [ date evaluate:
+      [ !byAcct <- secList collectListElementsFrom: [ holdings ] .
+           groupedBy: [ account ] ;
+        !data <- byAcct
+          send: [ !object <- ^my getNewObject 
+                    set: "acctId" to: code . 
+                    set: "name" to: name ;
+                   groupList groupedBy: [ security ]
+                                    in: ^my secList . sortUp: [ position ] .
+                   do: [ ^my object set: ("sec" concat: position)
+                                     to: (groupList total: [ percentOfPort ] );
+                       ] ;
+                   object
+                 ] ;
+         !ro <- ^self responseObject ;
+         ro set: "data" to: (^self getNewArrayFrom: data) ;
+         secList do: [ ^my ro set: ("sec" concat: position) to: code ] ;
+         ^self updateStatusWithSuccess ;
+       ] ;
+    ]
+ifFalse: 
+   [ ^self postErrorWithMessage: ("No Securities Supplied")
+   ] ;
+^self
+] ;
+
+
+
+#>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+Applay Lib defineMethod: [ | BenchmarkMemberChanges |
+!id <- ^self getParam: "acctId" ;
+!bench <- GlobalWorkspace Account findId: id ;
+!start_date <- ^self getParam: "date" . asInteger asDate 
+      else: [ earliestPossibleDate ] ;
+bench isntDefault
+ifTrue:
+  [ !date <- bench :memberList effectiveDateAsOf: start_date .
+       ifDefault: [ bench :memberList nextDateAsOf: start_date ] ;
+    !list <- bench :memberList asOf: date . sortUp: [ name ] .
+      extendBy: [ !date <- ^my date ;
+                  !status <- "initial" ;
+                ] ;
+
+     bench :memberList linkElements
+       select: [ ^date > ^my date ] .
+       do: [ !priorList <- prior isntNA
+                 ifTrue: [ prior asSelf ] 
+                   else: [ CoreWorkspace IndexedList ] ;
+             !diffs <- ^self difference: priorList ;
+             !adds <- diffs at: 1 . sortUp: [ name ] .
+                   extendBy: [ !date <- ^date ;
+                               !status <- "add" ;
+                             ] ;
+             !drops <- diffs at: 2 . sortUp: [ name ] .
+                   extendBy: [ !date <- ^date ;
+                               !status <- "drop" ;
+                             ] ;
+             ^my list appendListElementsFrom: adds .
+                         appendListElementsFrom: drops
+              ] ;
+     !objects <- list sortUp: [ date ] .
+         send: [ ^my getNewObject
+                    set: "date" to: date asInteger .
+                    set: "status" to: status .
+                    set: "secId" to: code .
+                ] ;
+         ^self responseObject 
+            set: "id" to: bench id .
+            set: "name" to: bench name .
+            set: "baseDate" to: date asInteger .
+            set: "changes" to: (^self getNewArrayFrom: objects) ;
+         ^self updateStatusWithSuccess ;
+   ]
+ifFalse: 
+   [ ^self postErrorWithMessage: ("Id " concat: id . concat: " not found.")
+   ] ;
+^self
+] ;
+
+
+
+#>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+

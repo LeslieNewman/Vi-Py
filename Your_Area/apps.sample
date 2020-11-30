@@ -1,0 +1,40 @@
+Applay Lib defineMethod: [ | Tester |
+!wkspace <- ^self ; 
+!id <-   ^self getParam: "acctId" ;
+!date <- ^self getParam: "date" . asDate else: ^date ;
+!max <-  ^self getParam: "num" . asInteger  ;
+!entity <- GlobalWorkspace Account findId: id ;
+entity isntDefault
+ifTrue: 
+  [ !holdings <- date evaluate: [ entity holdings ] ;
+    max isntNA
+      ifTrue: [ :holdings <- holdings sortDown: [ percentOfPort ] . first: max ] ;
+    ^self responseObject
+        set: "id" to: entity id . 
+        set: "name" to: entity name .
+       ; 
+     !constits <- holdings 
+        send: [ ^my wkspace getNewObject 
+                    set: "acctId" to: account code .
+                    set: "date" to: date formatUsingShortName .
+                    set: "secId" 
+                     to: security descriptiveData factsetId .
+                    set: "name" to: security name .
+                    set: "weight" to: percentOfPort .
+                    set: "mval" to: totalMarketValue .
+                ] ;
+    ^self responseObject
+         set: "constituents" to: (^self getNewArrayFrom: constits);
+    ^self updateStatusWithSuccess ;
+    ]
+ifFalse: 
+   [ ^self postErrorWithMessage: ("Id " concat: id . concat: " not found.")
+   ] ;
+
+^self
+] ;
+
+Applay run: "Tester" 
+       withParams:(Applay  getNewObject set: "acctId" to: "sp50" . set: "num" to: 5) . pprint ; 
+
+
