@@ -1,5 +1,4 @@
 import requests as ur
-import json
 
 def getUrlPrefix():
     return('http://YOUR_ADDRESS_GOES_HERE:10010/vision/api')
