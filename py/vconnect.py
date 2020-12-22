@@ -1,7 +1,9 @@
 import requests as ur
+import os
 
 def getUrlPrefix():
-    return('http://YOUR_ADDRESS_GOES_HERE:10010/vision/api')
+    #  Use os.environ['VisionServerAddress'] = 'http://Your.Server.Name:10010/vision/api'
+    return(os.getenv('VisionServerAddress'))
 
 #--- runvget("Schema+showInheritance")
 #---  do your own encoding
