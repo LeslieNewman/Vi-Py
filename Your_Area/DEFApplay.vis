@@ -1,3 +1,4 @@
+
 ####################
 #  applay.vis
 #
@@ -25,7 +26,72 @@ CoreWorkspace respondsTo: "Applay". ifFalse: [
 
 Applay defineMethod: [ | run: app withParams: params |
 ^self setParamsTo: params ;
-^self run: app 
+^self run: app
+
+] ;
+
+Applay defineMethod: [ | run: app |
+!methodBlock <- ^self getAppName: app ;
+!statusObject <- getNewObject ;
+!responseObject <-  getNewObject ;
+methodBlock isntNA
+   ifTrue: [ ^current executeApplication ]
+  ifFalse: [ ^current postAppNotFound ] ;
+
+!resultObject <-  getNewObject
+    set: "appName" to: app .
+    set: "status" to: statusObject .
+    set: "response" to: responseObject .
+;
+clearParams ;
+^self return: resultObject
+
+] ;
+
+Applay defineMethod: [ | executeApplication |
+!wkspace <- ^self ;
+Lib
+  extendBy: [ !statusObject <- ^my wkspace statusObject ;
+              !responseObject <- ^my wkspace responseObject ;
+            ] .
+     send: ^self methodBlock
+] ;
+
+Applay defineMethod: [ | getAppName: app |
+app isntNA
+ifTrue:
+   [ GlobalWorkspace ApplicationTools Utilities
+         getCaseSensitiveSelectorFor: app in: Lib .
+      send: [ isntNA ifTrue: [ asBlock ] ]
+/home/user/lnewman/wkspace/python [425]% cat $FDSBridgeArea/Applayer/DEFApplay.vis
+####################
+#  applay.vis
+#
+#  Experimental code to package up the application side of the
+#    external object model
+####################
+
+
+####################
+#  Create the ToolKit class
+####################
+CoreWorkspace respondsTo: "Applay". ifFalse: [
+    ToolKit createSubclass: "Applay" at: CoreWorkspace;
+    Applay createSubclass: "Lib" at: Applay ;
+] ;
+
+
+####################
+#  Protocol
+####################
+
+#--------------------
+#  Application Execution
+#--------------------
+
+Applay defineMethod: [ | run: app withParams: params |
+^self setParamsTo: params ;
+^self run: app
 
 ] ;
 
@@ -147,7 +213,7 @@ object set: "snfs" to: (^self getNewArrayFrom: snfObjects) ;
 Applay  defineMethod: [ | returnJSON: object |
   connection isNA
      ifTrue: [ getConnection jsObject returnJSON: object jsParam ]
-       else: [ object ] 
+       else: [ object ]
 ] ;
 
 Applay defineMethod: [ | getSNFObjects |
@@ -217,7 +283,7 @@ defineMethod: [ | getCaseSensitiveSelectorFor: id in: class |
 #xxx Object defineMethod: [| handleSNF: snf|
 #xxx   GlobalWorkspace ProcessControlTools logSNF: snf onObject: ^self
 #xxx ] ;
-#xxx 
+#xxx
 #xxx ProcessControlTools defineMethod: [ | logSNF: snf onObject: object |
 #xxx ^tmp enableSNFLogger isTrue
 #xxx ifTrue:
@@ -237,4 +303,3 @@ defineMethod: [ | getCaseSensitiveSelectorFor: id in: class |
 
 ^tmp define: 'enableSNFLogger' toBe: FALSE ;
 ^tmp define: 'currentSNFList' toBe: List new ;
-
