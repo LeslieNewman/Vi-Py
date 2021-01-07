@@ -25,7 +25,7 @@ JS defineMethod: [ | \.id | ^self jsObject \.id];
 
 #if this is a standalone non fed startup SecurityMap will be NA
 SecurityMap isNA
-ifTrue: [ 
+ifTrue: [
 Double  defineMethod: [ | \.id | ^self asSelf ];
 Float   defineMethod: [ | \.id | ^self asSelf ];
 Integer defineMethod: [ | \.id | ^self asSelf ];
@@ -33,7 +33,7 @@ String  defineMethod: [ | \.id | ^self asSelf ];
 NA      defineMethod: [ | \.id | "visionNA" ] ;  #-- from 'vserver' project
 ];
 
-SecurityMap isntNA 
+SecurityMap isntNA
 ifTrue: [
  # globalDefineMethod will put method into every vdb
  # in the session (eg the federation)
@@ -43,10 +43,10 @@ ifTrue: [
  Integer globalDefineMethod: [ | \.id | ^self asSelf ];
  String  globalDefineMethod: [ | \.id | ^self asSelf ];
  #because we don't know what we want to do with 'null' yet
- NA      globalDefineMethod: [ | \.id | "visionNA" ] ; 
+ NA      globalDefineMethod: [ | \.id | "visionNA" ] ;
 
 #secmap isn't in OBthe global define method
- SecurityMap CoreWorkspace 
+ SecurityMap CoreWorkspace
  do: [
       Double  defineMethod: [ | \.id | ^self asSelf ];
       Float   defineMethod: [ | \.id | ^self asSelf ];
@@ -227,7 +227,7 @@ JS defineMethod: [ | fetch: query from: url |
 
 JS defineMethod: [ | fetchText: query from: url |
    ^self object: (
-      ^self jsObject fetchText: query jsParam 
+      ^self jsObject fetchText: query jsParam
                      from: (url concat: "&pretty&")
    )
 ];
@@ -250,20 +250,20 @@ JS defineMethod: [ | fetchJSONFrom: url |
 JS defineMethod: [ | fetchFrom: url withOptions: options |
    ^self object: (
       ^self jsObject fetchFrom: url withOptions: options jsParam
-   ) . get: [ await ] 
+   ) . get: [ await ]
 ];
 
 JS defineMethod: [ | fetchTextFrom: url withOptions: options |
    ^self object: (
       ^self jsObject fetchTextFrom: (url concat: "&pretty&")
                      withOptions: options jsParam
-   ) .  get: [ await ] 
+   ) .  get: [ await ]
 ];
 
 JS defineMethod: [ | fetchJSONFrom: url withOptions: options |
    ^self object: (
       ^self jsObject fetchJSONFrom: url withOptions: options jsParam
-   ) . get: [ await ] 
+   ) . get: [ await ]
 ];
 
 ## newer things 11/2020
@@ -302,9 +302,13 @@ JS defineMethod: [ | isConnected | ^self jsObject isntNA ] ;
 
 JS defineMethod: [ | getConnection |
 ^self isConnected
-    ifTrue: [ ^self  ]
-   ifFalse: [ ^self serverByName: "Node_Fetch" ] 
+    ifTrue: [ ^self extendBy: [ !external <- TRUE ] ]
+   ifFalse: [ ^self getInternalConnection extendBy: [ !external <- FALSE ]  ]
 ] ;
+
+JS defineMethod: [ | getInternalConnection |
+^self serverByName: "Node_Fetch"
+]  ;
 
 JS defineMethod: [ | createArrayFrom: expression for: items |
   ^self createArrayFrom: expression for: items over: ^date
@@ -365,17 +369,21 @@ JS defineMethod: [ | getArrayFrom: expression for: items over: dates |
 !object <- ^self createArrayFrom: expression for: items over: dates ;
 jsObject isntNA
   ifTrue: [ ^self jsObject returnJSON: (object jsParam) ]
- ifFalse: [ object ] 
+ ifFalse: [ object ]
 ] ;
 
 JS defineMethod: [ | getArrayFrom: expression for: items  |
 !object <- ^self createArrayFrom: expression for: items ;
 jsObject isntNA
   ifTrue: [ ^self jsObject returnJSON: (object jsParam) ]
- ifFalse: [ object ] 
+ ifFalse: [ object ]
 ] ;
 
+JS  defineMethod: [ | returnJSON: object |
+  ^self isConnected && [ ^self external isTrue ]
+     ifTrue: [ ^self jsObject returnJSON: object jsParam  ]
+       else: [ object ]
+] ;
+
+
 #======================================================================
-
-
-
