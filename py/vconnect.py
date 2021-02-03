@@ -1,39 +1,48 @@
 import requests as ur
-import os
 
-def getUrlPrefix():
-    #  Use os.environ['VisionServerAddress'] = 'http://Your.Server.Name:10010/vision/api'
-    return(os.getenv('VisionServerAddress'))
+class VCconnection(object):
+    """The VCconnection object contains the information needed to connect."""
+    # Class Variables
+    defaultUrl = 'http://visdevdb01.cts.fast-clientenv-aws.dev.us-east-1.aws.fdscloud.io:10010/vision/api'
 
-#--- runvget("Schema+showInheritance")
-#---  do your own encoding
-def runvget(query):
-    url=getUrlPrefix()
-    request = url + '?expression=' + query
-    response = ur.get(request)
-    return(response.text)
+    def __init__(self, url=defaultUrl):
+        self.urlPrefix = url
+    def __str__(self):
+        return '{} for {} at 0x{:08x}'.format(self.__class__.__name__, self.urlPrefix, id(self))
+    def setUrl(self, url):
+        """The method sets the URL for the VCconnection."""
+        self.urlPrefix = url
+    def resetUrl(self):
+        """The method resets the URL for the VCconnection."""
+        self.url = defaultUrl
 
-#--- runvpost("Schema showInheritance")
-#---   returns object that reponds to text or json()
-def runvpost(query):
-    url=getUrlPrefix()
-    if (type(query) is dict):
-        exp = query
-    else:
-        exp = {'expression' : query}
-    response = ur.post(url, json=exp)
-    return(response)
+    #--- runvget("Schema+showInheritance")
+    #---  do your own encoding
+    def runvget(self, query):
+        request = self.urlPrefix + '?expression=' + query
+        response = ur.get(request)
+        return(response.text)
 
-#--  runvision("Schema showInheritance")
-def runvision(query):
-    return(runvpost(query).text)
+    #--- runvpost("Schema showInheritance")
+    def runvpost(self, query):
+        """ Returns object that reponds to text or json()"""
+        if (type(query) is dict):
+            exp = query
+        else:
+            exp = {'expression' : query}
+        response = ur.post(self.urlPrefix, json=exp)
+        return(response)
 
-#-- runvisionJSON('JS getArrayFrom: [ Currency masterList ] for: "name"')   
-def runvisionJSON(query):
-   return(runvpost(query).json())
+    #--  runvision("Schema showInheritance")
+    def runvision(self, query):
+        return(self.runvpost(query).text)
 
-#--- runapp ("appName", params={})
-def runapp (appName, params={} ):
-    exp = 'Applay run: "' + appName + '"'
-    params['expression'] = exp
-    return runvisionJSON(params)
+    #-- runvisionJSON('JS getArrayFrom: [ Currency masterList ] for: "name"')   
+    def runvisionJSON(self, query):
+       return(self.runvpost(query).json())
+
+    #--- runapp ("appName", params={})
+    def runapp (self, appName, params={} ):
+        exp = 'Applay run: "' + appName + '"'
+        params['expression'] = exp
+        return self.runvisionJSON(params)
