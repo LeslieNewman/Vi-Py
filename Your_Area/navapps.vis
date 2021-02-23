@@ -1,0 +1,344 @@
+#-- disable 'expenseive' messages
+SecurityMap factset getMessage: "prices" . setFunctionTypeTo: "DataX" ;
+
+#============================================================================
+
+Applay Lib defineMethod: [ | InspectInstance |
+!wkspace <- ^self ;
+!ro <- wkspace responseObject ;
+
+!baseClass <- ^self getParam: "baseClass" . else: "Entity"  . evaluate ;
+!entityId <- ^self getParam: "entityId" ;
+!path <- ^self getParam: "path" . else: "" ;
+!element <- ^self getParam: "element" . asInteger else: 1 ;
+!date <- ^self getParam: "date" . asDate else: ^date ;
+
+!instance <- baseClass findId: entityId ;
+date evaluate:
+  [ !object <- path isDefault
+      ifTrue: [ instance ] else: [ instance send: path asBlock ] ;
+    object isTimeSeries ifTrue: [ :object <- object value ] ;
+    !usesElement <- FALSE ;
+    object isCollection
+      ifTrue: [ :object <- object toList at: element ;
+                :usesElement <- TRUE ;
+              ] ;
+    instance isntDefault
+    ifTrue:
+      [ !access <- instance accessExpression concat: " " . concat: path ;
+        usesElement
+          ifTrue: [ :access <- access concat: "toList at: " . concat: element ] ;
+
+        ro
+         set: "baseClass" to: baseClass whatAmI .
+         set: "dataClass" to: object whatAmI .
+         set: "id" to: instance id .
+         set: "name" to: instance name .
+         set: "date" to: ^date asString .
+         set: "path" to: path .
+         set: "access" to: access .
+       ;
+
+        !list <- object getMessagesX select: [includeInDataModel].
+           select: [ code contains: ":" .not] .
+           send: [ !messageId <- code ;
+                   !instance <- ^my instance;
+                   !internalValue <- ^my object send: code asUpdateBlock;
+                   !val <- internalValue value;
+                   !displayValue <- val isNumber
+                        ifTrue: [ val ] else: [ val asString ] ;
+                   !jso <- ^my wkspace getNewObject
+                     set: "item" to: messageId .
+                     set: "value" to: displayValue .
+                     set: "valueType" to: val whatAmI .
+                     set: "messageType" to: type shortName .
+                   ;
+                  type isTimeSeriesProperty && [ internalValue count > 0 ]
+                  ifTrue: [ !inputs <- ^my wkspace getNewObject
+                               set: "app" to: "InspectTimeSeries" .
+                               set: "label" to: val asString .
+                               set: "baseClass" to: instance whatAmI .
+                               set: "entityId" to: instance id .
+                               set: "path" to: ^my path .
+                               set: "item" to: messageId .
+                               set: "startDate" to: internalValue firstDate asInteger .
+                               set: "endDate" to: internalValue lastDate asInteger .
+                               set: "count" to: internalValue count ;
+                             jso set: "drillInputs" to: inputs .
+                           ] ;
+                  val isEstimateBridge
+                   ifTrue: [ !inputs <- ^my wkspace getNewObject
+                               set: "app" to: "InsepctEstimateBridge" .
+                               set: "label" to: val whatAmI .
+                               set: "baseClass" to: instance whatAmI .
+                               set: "entiityId" to: instance id .
+                               set: "path" to: ^my path .
+                               set: "item" to: messageId .
+                               set: "date" to: ^date asInteger ;
+                             jso set: "navInputs" to: inputs .
+                           ] .
+                   elseIf: [ val isDataRecord || val isBridge
+                               || [ val isEntity && val CoreWorkspace != GlobalWorkspace ]
+                           ]
+                     then: [ !inputs <- ^my wkspace getNewObject
+                               set: "app" to: "InspectInstance" .
+                               set: "label" to: val whatAmI .
+                               set: "baseClass" to: instance whatAmI .
+                               set: "entityId" to: instance id .
+                               set: "path" to: (^my path concat: " " . concat: messageId) .
+                               set: "date" to: ^date asInteger ;
+                             jso set: "navInputs" to: inputs .
+                           ] .
+                   elseIf: [ val isTimeSeries ]
+                     then: [ !inputs <- ^my wkspace getNewObject
+                               set: "app" to: "InspectTimeSeries" .
+                               set: "label" to: val asString .
+                               set: "baseClass" to: instance whatAmI .
+                               set: "entityId" to: instance id .
+                               set: "path" to: ^my path .
+                               set: "item" to: messageId .
+                               set: "date" to: ^date asInteger;
+                             jso set: "navInputs" to: inputs .
+                           ] .
+                   elseIf: [ val isCollection ]
+                     then: [ !inputs <- ^my wkspace getNewObject
+                               set: "app" to: "InspectCollection" .
+                               set: "label" to: val asString .
+                               set: "baseClass" to: instance whatAmI .
+                               set: "entityId" to: instance id .
+                               set: "path" to: ^my path .
+                               set: "item" to: messageId .
+                               set: "date" to: ^date asInteger ;
+                             jso set: "navInputs" to: inputs .
+                           ] .
+                   elseIf: [ val isEntity ]
+                     then: [ !inputs <- ^my wkspace getNewObject
+                               set: "app" to: "InspectInstance" .
+                               set: "label" to: val asString .
+                               set: "baseClass" to: val whatAmI .
+                               set: "entityId" to: val asString .
+                               set: "date" to: ^date asInteger ;
+                             jso set: "navInputs" to: inputs .
+                           ] ;
+                  jso
+                 ] ;
+        ro set: "data" to: (^self getNewArrayFrom: list) ;
+        ^self updateStatusWithSuccess ;
+        ]
+    ifFalse:
+       [ ^self postErrorWithMessage: ("Id " concat: entityId . concat: " not found.")
+       ] ;
+  ] ;   #- end of ^date evaluate: [
+^self
+
+] ;
+
+#----------
+
+
+Applay Lib defineMethod: [ | InspectTimeSeries |
+!wkspace <- ^self ;
+!ro <- wkspace responseObject ;
+
+!baseClass <- ^self getParam: "baseClass" . else: "Entity"  . evaluate ;
+!entityId <- ^self getParam: "entityId" ;
+!path <- ^self getParam: "path" . else: "" ;
+!item <- ^self getParam: "item" . else: "" ;
+!instance <- baseClass findId: entityId ;
+
+!object <- path isDefault
+   ifTrue: [ instance ] else: [ instance send: path asBlock ] ;
+
+!isProperty <- TRUE ;
+!ts <- item isntNA && [ object respondsTo: item ]
+   ifTrue: [ object send: item asUpdateBlock ] ;
+ts isBlock
+ ifTrue: [ :ts <- ts value ;
+           :isProperty <- FALSE ;
+         ] ;
+
+ts isTimeSeries
+ifTrue:
+  [ !via <- path concat: " " . concat: item ;
+    ro
+     set: "baseClass" to: baseClass whatAmI .
+     set: "dataClass" to: object whatAmI .
+     set: "id" to: instance id .
+     set: "name" to: instance name .
+     set: "path" to: via .
+    ;
+    !data <- ts
+      send: [ !date <- ^date ;
+              !val <- ^self ;
+              !displayValue <- val isNumber
+                   ifTrue: [ val ] else: [ val asString ] ;
+              !jso <- ^my wkspace getNewObject
+                 set: "date" to: ^date formatUsingMMDDYY .
+                 set: "value" to: displayValue .
+                 set: "valueType" to: val whatAmI ;
+              val isDataRecord
+              ifTrue:
+                [ !label <- val recordValue isntNA
+                  ifTrue:
+                    [ val recordValue asString concat: " (" .
+                        concat: val whatAmI . concat: ") "
+                    ] .
+                  elseIf: [ val isDefault ]
+                    then: [ "Default " concat: val whatAmI ] .
+                    else: [ val whatAmI ] ;
+                  !inputs <- ^my wkspace getNewObject
+                     set: "app" to: "InspectInstance" .
+                     set: "label"  to: label .
+                     set: "baseClass" to: ^my instance whatAmI .
+                     set: "entityId" to: ^my instance id .
+                     set: "path" to: ^my via .
+                     set: "date" to: ^date asInteger ;
+                  jso set: "navInputs" to: inputs .
+                ] .
+               elseIf: [ val isBridge ]
+               then:
+                 [ !inputs <- ^my wkspace getNewObject
+                     set: "app" to: "InspectInstance" .
+                     set: "label" to: val whatAmI .
+                     set: "baseClass" to: instance whatAmI .
+                     set: "entityId" to: instance id .
+                     set: "path" to: ^my via .
+                     set: "date" to: ^date asInteger ;
+                   jso set: "navInputs" to: inputs .
+                 ] .
+               elseIf: [ val isCollection ]
+               then:
+                [ !inputs <- ^my wkspace getNewObject
+                     set: "app" to: "InspectCollection" .
+                     set: "label" to: val asString .
+                     set: "baseClass" to: instance whatAmI .
+                     set: "entityId" to: instance id .
+                     set: "path" to: ^my path .
+                     set: "item" to: ^my item .
+                     set: "date" to: ^date asInteger ;
+                   jso set: "navInputs" to: inputs .
+                 ] .
+               elseIf: [ val isEntity ]
+               then:
+                 [ !label <- [ whatAmI print ; " " print ; displayInfo ]
+                           divertOutput stripChar: newLine ;
+                   !inputs <- ^my wkspace getNewObject
+                     set: "app" to: "InspectInstance" .
+                     set: "label" to: label .
+                     set: "baseClass" to: val whatAmI .
+                     set: "entityId" to: val asString .
+                     set: "date" to: ^date asInteger ;
+                   jso set: "navInputs" to: inputs .
+                 ] ;
+              jso
+             ] ;
+    ro set: "data" to: (^self getNewArrayFrom: data) ;
+    ^self updateStatusWithSuccess ;
+    ]
+ifFalse:
+    [ !error <-  item isDefault
+          ifTrue: ["No item supplied."  ] .
+          else: [ item concat: " is not a time series." ] ;
+       ^self postErrorWithMessage: error ;
+   ] ;
+
+^self
+] ;
+
+
+#----------
+
+Applay Lib defineMethod: [ | InspectEstimateBridge |
+!wkspace <- ^self ;
+!ro <- wkspace responseObject ;
+
+] ;
+
+
+Applay Lib defineMethod: [ | InspectCollection |
+!wkspace <- ^self ;
+!ro <- wkspace responseObject ;
+
+!baseClass <- ^self getParam: "baseClass" . else: "Entity"  . evaluate ;
+!entityId <- ^self getParam: "entityId" ;
+!path <- ^self getParam: "path" . else: "" ;
+!item <- ^self getParam: "item" . else: "" ;
+!date <- ^self getParam: "date" . asDate else: ^date ;
+
+!instance <- baseClass findId: entityId ;
+date evaluate:
+  [ !object <- path isDefault
+      ifTrue: [ instance ] else: [ instance send: path asBlock ] ;
+    !list <- item isntNA && [ object respondsTo: item ]
+       ifTrue: [ object send: item asBlock ] ;
+    list isCollection
+    ifTrue:
+      [ ro
+         set: "baseClass" to: baseClass whatAmI .
+         set: "dataClass" to: object whatAmI .
+         set: "id" to: instance id .
+         set: "name" to: instance name .
+         set: "date" to: ^date asString .
+         set: "path" to: path .
+         set: "item" to: item .
+       ;
+        !via <- path concat: " " . concat: item ;
+         list isIndexedList
+            ifTrue: [ :list <- list extendIndex ] ;
+
+         !data <- list numberElements
+         send:
+            [
+              !val <- ^self ;
+              !displayValue <- val isNumber
+                   ifTrue: [ val ] else: [ val asString ] ;
+              !jso <- ^my wkspace getNewObject
+                 set: "date" to: ^date asInteger .
+                 set: "position" to: position .
+                 set: "valueType" to: val whatAmI .
+                 set: "val" to: displayValue ;
+              ^my list isIndexedList
+                  ifTrue:
+                    [  jso set: "isIndex" to: "TRUE" .
+                           set: "indexClass" to: index whatAmI .
+                           set: "indexId" to: index asString ;
+                    ] ;
+             val isEntity
+              ifTrue:
+                [ !label <- code ;
+                  !inputs <- ^my wkspace getNewObject
+                     set: "app" to: "InspectInstance" .
+                     set: "label"  to: label .
+                     set: "baseClass" to: whatAmI .
+                     set: "entityId" to: code .
+                     set: "path" to: ^my via .
+                     set: "date" to: ^date asInteger ;
+                  jso set: "navInputs" to: inputs .
+                ] .
+               elseIf: [ isLinkRecord || isBridge && [ ^my list isIndexedList not ] ]
+               then:
+                 [ !label <- asString ;
+                   !inputs <- ^my wkspace getNewObject
+                     set: "app" to: "InspectInstance" .
+                     set: "label" to: label .
+                     set: "baseClass" to: ^my instance whatAmI .
+                     set: "entityId" to: ^my instance id .
+                     set: "path" to: ^my via .
+                     set: "position" to: position .
+                     set: "date" to: ^date asInteger ;
+                   jso set: "navInputs" to: inputs .
+                 ] ;
+              jso
+             ] ;
+       ro set: "data" to: (^self getNewArrayFrom: data) ;
+       ^self updateStatusWithSuccess ;
+      ]
+   ifFalse:
+      [ !error <- item isDefault
+           ifTrue: [ "No Item Supplied." ]
+             else: [ item concat: " is not a Collection" ] ;
+        ^self postErrorWithMessage: error ;
+      ] ;
+  ] ;   #- end of ^date evaluate: [
+^self
+] ;
