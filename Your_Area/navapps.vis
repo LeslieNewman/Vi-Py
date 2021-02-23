@@ -11,6 +11,8 @@ Applay Lib defineMethod: [ | InspectInstance |
 !entityId <- ^self getParam: "entityId" ;
 !path <- ^self getParam: "path" . else: "" ;
 !element <- ^self getParam: "element" . asInteger else: 1 ;
+!useProperties <- ^self getParam: "useProperties" . else: "" .
+        toUpper take: 1 . = "Y" ;
 !date <- ^self getParam: "date" . asDate else: ^date ;
 
 !instance <- baseClass findId: entityId ;
@@ -39,8 +41,15 @@ date evaluate:
          set: "access" to: access .
        ;
 
-        !list <- object getMessagesX select: [includeInDataModel].
-           select: [ code contains: ":" .not] .
+        !list <- useProperties
+          ifTrue:
+            [ object getMessages select: [ isSchema ] .
+                  select: [type isProperty ]
+            ]
+          else:
+            [ object getMessagesX select: [includeInDataModel].
+                     select: [ code contains: ":" .not]
+            ] .
            send: [ !messageId <- code ;
                    !instance <- ^my instance;
                    !internalValue <- ^my object send: code asUpdateBlock;
