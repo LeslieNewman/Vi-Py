@@ -43,7 +43,7 @@ date evaluate:
 
         !list <- useProperties
           ifTrue:
-            [ object getMessages select: [ isSchema ] .
+            [ object getMessagesX select: [ isSchema ] .
                   select: [type isProperty ]
             ]
           else:
