@@ -1,5 +1,6 @@
 #-- disable 'expenseive' messages
 SecurityMap factset getMessage: "prices" . setFunctionTypeTo: "DataX" ;
+SecurityMap factset getMessage: "getMapEntry" . setFunctionTypeTo: "Data" ;
 
 #============================================================================
 
